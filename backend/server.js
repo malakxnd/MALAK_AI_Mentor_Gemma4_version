@@ -257,24 +257,30 @@ app.post('/api/chat/message', async (req, res) => {
     console.log(`[${new Date().toISOString()}] User ${userId}: "${message.substring(0, 60)}"`);
 
     try {
-        // 1. Save user message
-        const userMsgResult = await query(
-            'INSERT INTO chat_messages (session_id, sender, message_text) VALUES ($1, $2, $3) RETURNING message_id',
-            [sessionId, 'User', message]
-        );
+        const shouldInjectMemory = memoryType !== 'casual' && userId && process.env.PINECONE_API_KEY;
+
+        // FIX 1: Run save user message + Pinecone query in parallel instead of sequentially
+        const [userMsgResult, memories] = await Promise.all([
+            query(
+                'INSERT INTO chat_messages (session_id, sender, message_text) VALUES ($1, $2, $3) RETURNING message_id',
+                [sessionId, 'User', message]
+            ),
+            shouldInjectMemory
+                ? queryMemory({ userId, currentMessage: message, topK: 5 })
+                : Promise.resolve([])
+        ]);
+
         const userMessageId = userMsgResult.rows[0].message_id;
 
-        // 2. Store in Pinecone (non-blocking)
+        // Store user message in Pinecone (non-blocking)
         storeMemory({ userId, sessionId,
             messageId: userMessageId, text: message, sender: 'User',
             type: memoryType })
             .catch(e => console.warn('storeMemory() failed:', e.message));
 
-        // 3. Query Pinecone for relevant past context
+        // Build context block from parallel-fetched memories
         let contextBlock = '';
-        const shouldInjectMemory = memoryType !== 'casual' && userId && process.env.PINECONE_API_KEY;
-        if (shouldInjectMemory) {
-            const memories = await queryMemory({ userId, currentMessage: message, topK: 5 });
+        if (shouldInjectMemory && memories.length > 0) {
             contextBlock = buildContextBlock(memories);
             if (contextBlock) {
                 console.log(`🧠 Injecting ${memories.length} memories into prompt`);
@@ -285,12 +291,12 @@ app.post('/api/chat/message', async (req, res) => {
             console.log(`🧠 Skipping memory injection (type: ${memoryType})`);
         }
 
-        // 4. Build enriched prompt
+        // Build enriched prompt
         const enrichedPrompt = contextBlock
             ? `${contextBlock}\n\n[CURRENT MESSAGE]\n${message}`
             : message;
 
-        // 5. Call Gemma — use cache for repeated/similar queries
+        // Call Gemma — use cache for repeated/similar queries
         let aiText = getCachedResponse(message);
         if (aiText) {
             console.log('⚡ Cache hit — skipping Gemma call');
@@ -315,18 +321,21 @@ app.post('/api/chat/message', async (req, res) => {
             }
         }
 
-        // 6. Save AI reply
+        // Save AI reply
         const aiMsgResult = await query(
             'INSERT INTO chat_messages (session_id, sender, message_text) VALUES ($1, $2, $3) RETURNING message_id',
             [sessionId, 'malak', aiText]
         );
         const aiMessageId = aiMsgResult.rows[0].message_id;
 
-        // 7. Store AI reply in Pinecone (non-blocking)
+        // Store AI reply in Pinecone (non-blocking)
         storeMemory({ userId, sessionId, messageId: `ai-${aiMessageId}`, text: aiText, sender: 'malak', type: 'casual' })
             .catch(e => console.warn('storeMemory() AI failed:', e.message));
 
-        // 8. Background: title from first message only (once), goal/summary always for daily email
+        // FIX 2: Send response FIRST, then do background work after — user never waits for these
+        res.json({ reply: aiText });
+
+        // Background: title + insight run fully after response is sent
         const { rows: msgCount } = await query(
             'SELECT COUNT(*) FROM chat_messages WHERE session_id = $1', [sessionId]
         );
@@ -334,8 +343,6 @@ app.post('/api/chat/message', async (req, res) => {
             generateSessionTitle(sessionId, message);
         }
         updateSessionInsight(sessionId);
-
-        res.json({ reply: aiText });
 
     } catch (err) {
         console.error('Chat error:', err.message);
