@@ -4,7 +4,7 @@ dotenv.config();
 import { GoogleGenAI } from '@google/genai';
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMMA_API_KEY });
 const CLASSIFIER_MODEL = 'gemma-4-26b-a4b-it';
-const EMBEDDING_MODEL  = 'text-embedding-004'; // Google embedding — no local files, works on Render
+const EMBEDDING_MODEL  = 'gemini-embedding-001'; // Google embedding — no local files, works on Render
 
 // -- CLASSIFICATION CACHE --
 const classifyCache = new Map();
@@ -56,6 +56,7 @@ export async function generateEmbedding(text) {
         const response = await genAI.models.embedContent({
             model: EMBEDDING_MODEL,
             contents: text,
+            config: { outputDimensionality: 768 }
         });
 
         const vector = response?.embeddings?.[0]?.values;
