@@ -113,19 +113,24 @@
 
         /* TYPING */
         .typing-indicator { 
-            align-self: flex-start; 
-            background: rgba(255,255,255,0.04); 
-            border: 1px solid rgba(255,255,255,0.08); 
-            border-radius: 16px; border-bottom-left-radius: 4px; 
-            padding: 14px 18px; 
-            display: flex; 
-            gap: 8px; 
-            align-items: center; 
-            animation: fadeIn 0.3s ease;
-            font-size: 0.85rem;
-            color: rgba(0,243,255,0.7);
-        }
-        .typing-indicator .typing-text { letter-spacing: 0.3px; }
+    align-self: flex-start; 
+    background: rgba(255,255,255,0.04); 
+    border: 1px solid rgba(255,255,255,0.08); 
+    border-radius: 16px; border-bottom-left-radius: 4px; 
+    padding: 14px 18px; 
+    display: flex; 
+    gap: 8px; 
+    align-items: center;
+    flex-wrap: nowrap;       
+    width: fit-content;      
+    animation: fadeIn 0.3s ease;
+    font-size: 0.85rem;
+    color: rgba(0,243,255,0.7);
+}
+.typing-indicator .typing-text { 
+    white-space: nowrap;      
+    letter-spacing: 0.3px; 
+}
 
         .typing-indicator span { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: tdot 1.2s infinite; opacity: 0.5; }
         .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
