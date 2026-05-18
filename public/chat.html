@@ -10,7 +10,7 @@
 
         body { 
             margin: 0; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            color: var(--text); height: 100vh; overflow: hidden; 
+            color: var(--text); height: 100vh; height: 100dvh; overflow: hidden; 
             background-color: #050510; display: flex;
         }
         .aurora-bg {
@@ -35,10 +35,19 @@
 
         /* MOBILE SIDEBAR FIX */
         @media (max-width: 768px) {
-            #sidebar { position: fixed; height: 100vh; z-index: 100; }
+            #sidebar { position: fixed; height: 100dvh; z-index: 100; }
             body:not(.sidebar-hidden) #sidebar { margin-left: 0; }
             body.sidebar-hidden #sidebar { margin-left: calc(var(--sidebar-width) * -1); }
             #main { width: 100%; }
+
+            /* Dark backdrop — tapping it closes the sidebar */
+            body:not(.sidebar-hidden)::before {
+                content: '';
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 99;
+            }
         }
 
         .brand { font-size: 1.5rem; letter-spacing: 4px; font-weight: 300; text-transform: uppercase; color: white; margin-bottom: 40px; text-align: center; white-space: nowrap; }
@@ -251,6 +260,17 @@
 
         // ── TOGGLE SIDEBAR ────────────────────────────────────────────────
         function toggleSidebar() { document.body.classList.toggle('sidebar-hidden'); }
+
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('toggle-btn');
+            if (window.innerWidth <= 768
+                && !document.body.classList.contains('sidebar-hidden')
+                && !sidebar.contains(e.target)
+                && !toggleBtn.contains(e.target)) {
+                document.body.classList.add('sidebar-hidden');
+            }
+        });
 
         // ── NEW SESSION ───────────────────────────────────────────────────
         function startNewSession() {
