@@ -1,1 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MALAK | Command Center</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root { --accent: #00f3ff; --secondary: #9d00ff; --text: #fff; --sidebar-width: 280px; }
 
+        body { 
+            margin: 0; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            color: var(--text); height: 100vh; overflow: hidden; 
+            background-color: #050510; display: flex;
+        }
+        .aurora-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(0,243,255,0.15), transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(157,0,255,0.15), transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(0,0,0,1), transparent 100%);
+            filter: blur(80px); 
+        }
+
+        /* SIDEBAR */
+        #sidebar {
+            width: var(--sidebar-width); min-width: var(--sidebar-width);
+            height: 100vh; background: rgba(255,255,255,0.02);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(15px); display: flex; flex-direction: column;
+            padding: 25px; z-index: 10;
+            transition: margin-left 0.4s cubic-bezier(0.25,0.8,0.25,1);
+        }
+        body.sidebar-hidden #sidebar { margin-left: calc(var(--sidebar-width) * -1); }
+
+        .brand { font-size: 1.5rem; letter-spacing: 4px; font-weight: 300; text-transform: uppercase; color: white; margin-bottom: 40px; text-align: center; white-space: nowrap; }
+        .brand strong { color: var(--accent); font-weight: 700; text-shadow: 0 0 15px rgba(0,243,255,0.5); }
+
+        .new-chat-btn {
+            background: linear-gradient(90deg, var(--accent), #0066ff);
+            border: none; padding: 12px; border-radius: 8px; color: #000; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;
+            transition: 0.3s; box-shadow: 0 5px 15px rgba(0,243,255,0.2); margin-bottom: 20px; width: 100%;
+        }
+        .new-chat-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,243,255,0.4); }
+
+        .session-list { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .session-item {
+            padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; cursor: pointer;
+            font-size: 0.82rem; color: rgba(255,255,255,0.55); transition: 0.2s;
+            border: 1px solid transparent; overflow: hidden;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            line-height: 1.45; white-space: normal;
+        }
+        .session-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .session-item.active { background: rgba(0,243,255,0.08); border-color: rgba(0,243,255,0.25); color: var(--accent); }
+
+        .user-profile { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem; color: #aaa; display: flex; justify-content: space-between; align-items: center; }
+        .logout { color: #ff4d4d; cursor: pointer; font-size: 0.8rem; }
+
+        /* MAIN */
+        #main { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; }
+        #header { padding: 18px 30px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 20px; background: rgba(0,0,0,0.2); width: 100%; }
+        #toggle-btn { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--accent); font-size: 1.2rem; cursor: pointer; padding: 5px 12px; border-radius: 6px; transition: 0.3s; }
+        #toggle-btn:hover { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,243,255,0.2); }
+        #chat-title { font-weight: 300; font-size: 1rem; letter-spacing: 0.5px; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
+        #status-indicator { font-size: 0.75rem; color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+
+        /* MESSAGES */
+        #chat-history { flex: 1; padding: 30px 40px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+
+        .msg { max-width: 78%; padding: 14px 18px; border-radius: 16px; font-size: 0.97rem; line-height: 1.75; position: relative; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+        .msg.user { align-self: flex-end; background: linear-gradient(135deg,#00c8ff,#0055ee); color:#fff; font-weight:500; border-bottom-right-radius:4px; box-shadow:0 4px 15px rgba(0,150,255,0.2); }
+
+        .msg.ai { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #dde6f0; border-bottom-left-radius: 4px; }
+
+        /* Rich markdown styles inside AI bubble */
+        .msg.ai p { margin: 0 0 10px 0; }
+        .msg.ai p:last-child { margin-bottom: 0; }
+        .msg.ai strong { color: var(--accent); font-weight: 600; }
+        .msg.ai em { color: #b0c4de; }
+        .msg.ai h1 { font-size: 1.2rem; color: #fff; font-weight: 500; margin: 14px 0 6px; }
+        .msg.ai h2 { font-size: 1.1rem; color: #fff; font-weight: 500; margin: 12px 0 5px; }
+        .msg.ai h3 { font-size: 1rem; color: var(--accent); font-weight: 600; margin: 10px 0 4px; }
+        .msg.ai ul, .msg.ai ol { margin: 6px 0 10px 0; padding-left: 22px; }
+        .msg.ai li { margin-bottom: 5px; color: #cdd8e8; }
+        .msg.ai li strong { color: var(--accent); }
+        .msg.ai code { background: rgba(0,243,255,0.08); color: #7fffd4; padding: 2px 7px; border-radius: 4px; font-family: 'Courier New',monospace; font-size: 0.87em; border: 1px solid rgba(0,243,255,0.15); }
+        .msg.ai pre { background: rgba(0,0,0,0.45); border: 1px solid rgba(0,243,255,0.15); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 10px 0; }
+        .msg.ai pre code { background: none; border: none; padding: 0; color: #a8d8a8; font-size: 0.9em; }
+        .msg.ai blockquote { border-left: 3px solid var(--accent); margin: 8px 0; padding: 4px 12px; color: #9fb3c8; font-style: italic; }
+        .msg.ai hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0; }
+        .msg.ai a { color: var(--accent); }
+
+        /* TYPING */
+        .typing-indicator { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; border-bottom-left-radius: 4px; padding: 14px 18px; display: flex; gap: 6px; align-items: center; animation: fadeIn 0.3s ease; }
+        .typing-indicator span { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: tdot 1.2s infinite; opacity: 0.5; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes tdot { 0%,60%,100%{transform:translateY(0);opacity:.5} 30%{transform:translateY(-6px);opacity:1} }
+
+        /* INPUT */
+        #input-area { padding: 20px 40px 28px; background: linear-gradient(to top,#050510 60%,transparent); display: flex; gap: 12px; }
+        input { flex: 1; padding: 14px 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 12px; outline: none; font-size: 1rem; transition: 0.3s; }
+        input:focus { border-color: var(--accent); background: rgba(0,0,0,0.5); box-shadow: 0 0 20px rgba(0,243,255,0.08); }
+        input:disabled { opacity: 0.4; cursor: not-allowed; }
+        button#send { padding: 0 28px; background: var(--accent); color: #050510; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.9rem; letter-spacing: 1px; }
+        button#send:hover { background: white; box-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        button#send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .intro-screen { text-align: center; margin-top: 100px; opacity: 0.5; }
+        .intro-screen h2 { font-weight: 300; font-size: 2rem; margin-bottom: 10px; }
+        .intro-screen p { color: var(--accent); font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <div class="aurora-bg"></div>
+
+    <div id="sidebar">
+        <div class="brand">MEET <strong>MALAK</strong></div>
+        <button class="new-chat-btn" onclick="startNewSession()">+ New Mission</button>
+        <div class="session-list" id="session-list"></div>
+        <div class="user-profile">
+            <span id="username-display">User</span>
+            <span id="guest-badge" style="display:none;font-size:0.7rem;background:rgba(0,243,255,0.15);color:#00f3ff;padding:2px 8px;border-radius:20px;letter-spacing:1px;">GUEST</span>
+            <a onclick="signOut()" class="logout">Sign Out</a>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="header">
+            <button id="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h3 id="chat-title">New Mission</h3>
+            <span id="status-indicator">ONLINE</span>
+        </div>
+        <div id="chat-history">
+            <div class="intro-screen">
+                <h2>System Online</h2>
+                <p>MALAK is listening. Type below to begin.</p>
+            </div>
+        </div>
+        <div id="input-area">
+            <input type="text" id="msg-input" placeholder="Type your message..." onkeypress="handleEnter(event)">
+            <button id="send" onclick="sendMessage()">SEND</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL  = "http://localhost:3005/api";
+        const token    = localStorage.getItem("token");
+        const userId   = localStorage.getItem("userId");
+        const username = localStorage.getItem("username") || "User";
+        if (!token || !userId) window.location.href = "auth.html";
+        document.getElementById('username-display').innerText = username;
+        if (localStorage.getItem('isGuest') === 'true') {
+            document.getElementById('guest-badge').style.display = 'inline';
+        }
+
+        let allSessions     = [];
+        let activeSessionId = null;
+
+        // ── MARKDOWN RENDERER ─────────────────────────────────────────────
+        function escHtml(str) {
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function renderMarkdown(text) {
+    let out = text;
+    // 1. Code blocks first
+    out = out.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+        `<pre><code>${escHtml(code.trim())}</code></pre>`);
+    // 2. Inline code
+    out = out.replace(/`([^`\n]+)`/g, (_, c) => `<code>${escHtml(c)}</code>`);
+    // 3. Headers
+    out = out.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    out = out.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
+    out = out.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
+    // 4. Lists BEFORE bold/italic (this is the fix)
+    out = out.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    out = out.replace(/^[*-]\s+(.+)$/gm,  '<li>$1</li>');  // * or - bullets
+    out = out.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+    // 5. Bold/italic (now safe — bullet asterisks are already converted)
+    out = out.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    out = out.replace(/\*\*(.+?)\*\*/g,      '<strong>$1</strong>');
+    out = out.replace(/\*([^*\n]+?)\*/g,     '<em>$1</em>');  // tighter regex
+    // 6. HR, blockquote, paragraphs (unchanged)
+    out = out.replace(/^---$/gm, '<hr>');
+    out = out.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    const blocks = out.split(/\n\n+/);
+    out = blocks.map(b => {
+        b = b.trim();
+        if (!b) return '';
+        if (/^<(h[1-3]|ul|ol|pre|hr|blockquote)/.test(b)) return b;
+        return `<p>${b.replace(/\n/g, '<br>')}</p>`;
+    }).join('\n');
+    return out;
+}
+
+        // ── LOAD HISTORY ──────────────────────────────────────────────────
+        async function loadHistory() {
+            try {
+                const res  = await fetch(`${API_URL}/chat/history/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const rows = await res.json();
+
+                const map = {};
+                rows.forEach(row => {
+                    if (!map[row.session_id]) {
+                        map[row.session_id] = {
+                            id:       row.session_id,
+                            title:    row.session_title || 'New Mission',
+                            messages: []
+                        };
+                    }
+                    if (row.message_id) {
+                        map[row.session_id].messages.push({
+                            role:    row.sender === 'User' ? 'user' : 'ai',
+                            content: row.message_text
+                        });
+                    }
+                });
+
+                allSessions = Object.values(map).reverse();
+                allSessions.forEach(s => renderSidebarItem(s, false));
+            } catch (err) {
+                console.warn('Could not load history:', err.message);
+            }
+        }
+        loadHistory();
+
+        // ── TOGGLE SIDEBAR ────────────────────────────────────────────────
+        function toggleSidebar() { document.body.classList.toggle('sidebar-hidden'); }
+
+        // ── NEW SESSION ───────────────────────────────────────────────────
+        function startNewSession() {
+            if (activeSessionId === null) { document.getElementById('msg-input').focus(); return; }
+            activeSessionId = null;
+            document.getElementById('chat-title').innerText = 'New Mission';
+            document.getElementById('chat-history').innerHTML =
+                '<div class="intro-screen"><h2>System Online</h2><p>MALAK is listening. Type below to begin.</p></div>';
+            document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+        }
+
+        // ── SEND MESSAGE ──────────────────────────────────────────────────
+        async function sendMessage() {
+            const input   = document.getElementById('msg-input');
+            const sendBtn = document.getElementById('send');
+            const text    = input.value.trim();
+            if (!text) return;
+            input.disabled = sendBtn.disabled = true;
+
+            // First message → create real DB session
+            if (activeSessionId === null) {
+                try {
+                    const sr = await fetch(`${API_URL}/chat/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ userId })
+                    });
+                    const sd = await sr.json();
+                    activeSessionId = sd.sessionId;
+                    const newSession = { id: activeSessionId, title: 'New Mission', messages: [] };
+                    allSessions.unshift(newSession);
+                    renderSidebarItem(newSession, true);
+                    document.getElementById('chat-title').innerText = 'New Mission';
+                    document.getElementById('chat-history').innerHTML = '';
+                } catch (err) {
+                    console.error('Session creation failed:', err.message);
+                    input.disabled = sendBtn.disabled = false;
+                    return;
+                }
+            }
+
+            const currentSession = allSessions.find(s => s.id === activeSessionId);
+            currentSession.messages.push({ role: 'user', content: text });
+            addBubble(text, 'user');
+            input.value = '';
+
+            const typingEl = showTyping();
+
+            try {
+                const res = await fetch(`${API_URL}/chat/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ sessionId: activeSessionId, userId, message: text })
+                });
+                removeTyping(typingEl);
+
+                if (res.status === 429) {
+                    addBubble('⚠️ **System cooling down.** Please wait a moment and try again.', 'ai');
+                } else {
+                    const data = await res.json();
+                    if (data.reply) {
+                        addBubble(data.reply, 'ai');
+                        currentSession.messages.push({ role: 'ai', content: data.reply });
+                        // Refresh session title ~4s after reply (extract_goal is async)
+                        setTimeout(() => refreshSessionTitle(activeSessionId), 4500);
+                    } else if (data.error) {
+                        addBubble(`**Error:** ${data.error}`, 'ai');
+                    }
+                }
+            } catch (err) {
+                removeTyping(typingEl);
+                addBubble('**Connection error.** Make sure the server is running.', 'ai');
+            } finally {
+                input.disabled = sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        // Poll for updated AI-generated session title
+        async function refreshSessionTitle(sessionId) {
+            try {
+                const res  = await fetch(`${API_URL}/chat/history/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const rows = await res.json();
+                const row  = rows.find(r => r.session_id === sessionId && r.session_title && r.session_title !== 'New Conversation');
+                if (!row) return;
+                const session = allSessions.find(s => s.id === sessionId);
+                if (session && session.title !== row.session_title) {
+                    session.title = row.session_title;
+                    const el = document.getElementById(`session-${sessionId}`);
+                    if (el) el.innerText = row.session_title;
+                    if (activeSessionId === sessionId)
+                        document.getElementById('chat-title').innerText = row.session_title;
+                }
+            } catch (_) {}
+        }
+
+        // ── HELPERS ───────────────────────────────────────────────────────
+        function showTyping() {
+            const el = document.createElement('div');
+            el.className = 'typing-indicator';
+            el.innerHTML = '<span></span><span></span><span></span>';
+            const h = document.getElementById('chat-history');
+            h.appendChild(el); h.scrollTop = h.scrollHeight;
+            return el;
+        }
+        function removeTyping(el) { if (el?.parentNode) el.parentNode.removeChild(el); }
+
+        function renderSidebarItem(session, setActive) {
+            if (document.getElementById(`session-${session.id}`)) return;
+            const list = document.getElementById('session-list');
+            const div  = document.createElement('div');
+            div.className = 'session-item' + (setActive ? ' active' : '');
+            div.innerText = session.title;
+            div.id        = `session-${session.id}`;
+            div.onclick   = () => loadSession(session.id);
+            if (setActive) {
+                document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+                list.prepend(div);
+            } else {
+                list.appendChild(div);
+            }
+        }
+
+        function loadSession(id) {
+            activeSessionId = id;
+            const session   = allSessions.find(s => s.id === id);
+            if (!session) return;
+            document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`session-${id}`)?.classList.add('active');
+            document.getElementById('chat-title').innerText = session.title;
+            const history = document.getElementById('chat-history');
+            history.innerHTML = '';
+            session.messages.forEach(msg => addBubble(msg.content, msg.role));
+        }
+
+        function addBubble(text, type) {
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerHTML = type === 'ai' ? renderMarkdown(text) : escHtml(text);
+            const history = document.getElementById('chat-history');
+            history.appendChild(div);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
+        function signOut() { localStorage.clear(); window.location.href = 'auth.html'; }
+    </script>
+</body>
+</html>
