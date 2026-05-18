@@ -1,23 +1,21 @@
-import { EmbeddingModel, FlagEmbedding } from 'fastembed';
 import dotenv from 'dotenv';
 dotenv.config();
 
 import { GoogleGenAI } from '@google/genai';
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMMA_API_KEY });
 const CLASSIFIER_MODEL = 'gemma-4-26b-a4b-it';
-
+const EMBEDDING_MODEL  = 'text-embedding-004'; // Google embedding — no local files, works on Render
 
 // -- CLASSIFICATION CACHE --
 const classifyCache = new Map();
 const CACHE_MAX = 500;
 
 // -- HARDCODED PATTERNS --
-const CASUAL_PATTERNS = /^\s*(hi|hello|hey|hii|helo|sup|yo|howdy|greetings|good morning|good evening|good night|good afternoon|thanks|thank you|thx|ty|ok|okay|k|lol|haha|hehe|bye|goodbye|see you|cya|np|no problem|cool|nice|great|awesome|got it|sure|yep|nope|yes|no|maybe)\s*[!?.]*\s*$/i;
+const CASUAL_PATTERNS   = /^\s*(hi|hello|hey|hii|helo|sup|yo|howdy|greetings|good morning|good evening|good night|good afternoon|thanks|thank you|thx|ty|ok|okay|k|lol|haha|hehe|bye|goodbye|see you|cya|np|no problem|cool|nice|great|awesome|got it|sure|yep|nope|yes|no|maybe)\s*[!?.]*\s*$/i;
 const IDENTITY_PATTERNS = /\b(i am|i'm|my name is|i work as|i'm a|i am a|i study|i'm studying|i live in|i'm from|i'm based in|i'm currently)\b/i;
 const LEARNING_PATTERNS = /\b(teach me|explain|how (do|does|can|to)|learn|understand|what is|what are|difference between|help me (with|understand)|i want to learn|i need to learn|how it works|show me|walk me through|guide me|roadmap|course|resource|study|practice|stuck on|struggling with|can you help)\b/i;
 
 export async function classifyMemory(text) {
-    // 1. Cache hit
     if (classifyCache.has(text)) return classifyCache.get(text);
 
     const cache = (val) => {
@@ -28,12 +26,10 @@ export async function classifyMemory(text) {
 
     const t = text.trim();
 
-    // 2. Hardcoded — no LLM needed
-    if (CASUAL_PATTERNS.test(t)) return cache('casual');
+    if (CASUAL_PATTERNS.test(t))   return cache('casual');
     if (LEARNING_PATTERNS.test(t)) return cache('learning');
     if (IDENTITY_PATTERNS.test(t)) return cache('identity');
 
-    // 3. Ambiguous — LLM as last resort
     try {
         const response = await genAI.models.generateContent({
             model: CLASSIFIER_MODEL,
@@ -54,25 +50,26 @@ export async function classifyMemory(text) {
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
 const PINECONE_HOST    = process.env.PINECONE_HOST;
 
-// Recycle the embedder every 30 minutes to prevent it going stale during long uptime
-let _embedder = null;
-let _embedderCreatedAt = null;
-const EMBEDDER_TTL = 30 * 60 * 1000; // 30 minutes
- 
-async function getEmbedder() {
-    const now = Date.now();
-    if (_embedder && _embedderCreatedAt && (now - _embedderCreatedAt) > EMBEDDER_TTL) {
-        console.log('♻️ Recycling stale embedder');
-        _embedder = null;
-        _embedderCreatedAt = null;
-    }
-    if (!_embedder) {
-        _embedder = await FlagEmbedding.init({
-            model: EmbeddingModel.BGESmallENV15
+// -- 1. GENERATE EMBEDDING via Google API (no local files needed, works on Render) --
+export async function generateEmbedding(text) {
+    try {
+        const response = await genAI.models.embedContent({
+            model: EMBEDDING_MODEL,
+            contents: text,
         });
-        _embedderCreatedAt = Date.now();
+
+        const vector = response?.embeddings?.[0]?.values;
+
+        if (!vector || vector.length === 0) {
+            console.warn('Empty embedding returned');
+            return null;
+        }
+
+        return vector;
+    } catch (err) {
+        console.error('Embedding failed:', err.message);
+        return null;
     }
-    return _embedder;
 }
 
 async function pineconeRequest(path, method = 'GET', body = null) {
@@ -94,31 +91,13 @@ async function pineconeRequest(path, method = 'GET', body = null) {
     return res.json();
 }
 
-// -- 1. GENERATE EMBEDDING --
-export async function generateEmbedding(text) {
-    try {
-        const embedder = await getEmbedder();
-        const result = await embedder.queryEmbed([text]); // just await it, no for await
-        const vector = Array.from(result);
-
-        if (!vector || vector.length !== 384) {
-            console.warn("Invalid embedding size:", vector.length);
-            return null;
-        }
-        return vector;
-    } catch (err) {
-        console.error('Embedding failed:', err.message);
-        return null;
-    }
-}
-
 // -- 2. STORE A MESSAGE --
 export async function storeMemory({ userId, sessionId, messageId, text, sender, type }) {
     if (!PINECONE_API_KEY) return;
     try {
         const vector = await generateEmbedding(text);
-        if (!vector || vector.length !== 384) {
-            console.warn("Skipping Pinecone upsert due to bad vector");
+        if (!vector || vector.length === 0) {
+            console.warn('Skipping Pinecone upsert due to bad vector');
             return;
         }
 
@@ -145,7 +124,6 @@ export async function storeMemory({ userId, sessionId, messageId, text, sender, 
 }
 
 // -- 3. QUERY RELEVANT PAST CONTEXT --
-// Threshold lowered from 0.75 → 0.5 so more memories are retrieved
 export async function queryMemory({ userId, currentMessage, topK = 8, mode = 'chat' }) {
     if (!PINECONE_API_KEY) return [];
     try {
@@ -163,22 +141,15 @@ export async function queryMemory({ userId, currentMessage, topK = 8, mode = 'ch
         const matches = (result?.matches || [])
             .filter(m => {
                 if (m.score <= 0.7) return false;
-
-                if (mode === 'email') {
-                    return m.metadata.type === 'learning';
-                }
-
-                return (
-                    m.metadata.type === 'learning' ||
-                    m.metadata.type === 'identity'
-                );
+                if (mode === 'email') return m.metadata.type === 'learning';
+                return m.metadata.type === 'learning' || m.metadata.type === 'identity';
             })
             .map(m => ({
-                text: m.metadata.text,
-                sender: m.metadata.sender,
+                text:      m.metadata.text,
+                sender:    m.metadata.sender,
                 timestamp: m.metadata.timestamp,
-                type: m.metadata.type,
-                score: m.score
+                type:      m.metadata.type,
+                score:     m.score
             }));
 
         console.log(`queryMemory: ${matches.length} matches above 0.7 threshold`);
