@@ -1,0 +1,23 @@
+{
+  "name": "malak-ai-mentor",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch backend/server.js",
+    "start": "node backend/server.js",
+    "setup-db": "node backend/setupDB.js",
+    "motivator": "node backend/daily_motivator.js"
+  },
+  "dependencies": {
+    "fastembed": "^2.1.0",
+    "@google/genai": "^1.0.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.1",
+    "pg": "^8.13.3"
+  }
+}
