@@ -56,7 +56,10 @@ export async function generateEmbedding(text) {
         const response = await genAI.models.embedContent({
             model: EMBEDDING_MODEL,
             contents: text,
-            config: { outputDimensionality: 768 }
+            config: {
+                outputDimensionality: 768,
+                taskType: 'RETRIEVAL_DOCUMENT'
+            }
         });
 
         const vector = response?.embeddings?.[0]?.values;
@@ -66,6 +69,7 @@ export async function generateEmbedding(text) {
             return null;
         }
 
+        console.log(`✅ Embedding generated: ${vector.length} dims`);
         return vector;
     } catch (err) {
         console.error('Embedding failed:', err.message);
@@ -131,8 +135,19 @@ export async function queryMemory({ userId, currentMessage, topK = 8, mode = 'ch
         const vector = await generateEmbedding(currentMessage);
         if (!vector) return [];
 
+        // Use query-optimized embedding for retrieval
+        let queryVector = vector;
+        try {
+            const qResponse = await genAI.models.embedContent({
+                model: EMBEDDING_MODEL,
+                contents: currentMessage,
+                config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY' }
+            });
+            queryVector = qResponse?.embeddings?.[0]?.values || vector;
+        } catch (_) {}
+
         const result = await pineconeRequest('/query', 'POST', {
-            vector,
+            vector: queryVector,
             topK,
             includeMetadata: true,
             namespace: `user-${userId}`,
