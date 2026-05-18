@@ -154,10 +154,10 @@ Every message passes through this full pipeline before a single token is generat
                                    [PAST CONTEXT] + message
                                            │
                         ┌──────────────────▼───────────────────┐
-                        │         Response Cache check          │
-                        │  hit  → return instantly, skip Gemma  │
-                        │  miss → call Gemma 4 · cache if non-  │
-                        │         personalized (no memory used)  │
+                        │         Response Cache check         │
+                        │  hit  → return instantly, skip Gemma │
+                        │  miss → call Gemma 4 · cache if non- │
+                        │         personalized (no memory used)│
                         └──────────────────┬───────────────────┘
                                            │
                                  ┌─────────▼────────┐
@@ -393,7 +393,7 @@ GET   /api/chat/history/:userId  →  Last 90 days of sessions + messages
 
 <br/>
 
-**The command that started it all:**
+**The command that started it all, use it too for testing. I still get inspired byy it:**
 
 ```powershell
 Invoke-RestMethod `
@@ -432,11 +432,9 @@ git push origin feature/your-idea
 
 <br/>
 
-```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  
+Built with intention · Cairo, Egypt · 2026  
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Built with intention · Cairo, Egypt · 2026
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
 
 **Malak M. Salem**  
 Data Science · Cairo University
