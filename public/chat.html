@@ -112,26 +112,7 @@
         .msg.ai a { color: var(--accent); }
 
         /* TYPING */
-        .typing-indicator { 
-    align-self: flex-start; 
-    background: rgba(255,255,255,0.04); 
-    border: 1px solid rgba(255,255,255,0.08); 
-    border-radius: 16px; border-bottom-left-radius: 4px; 
-    padding: 14px 18px; 
-    display: flex; 
-    gap: 8px; 
-    align-items: center;
-    flex-wrap: nowrap;       
-    width: fit-content;      
-    animation: fadeIn 0.3s ease;
-    font-size: 0.85rem;
-    color: rgba(0,243,255,0.7);
-}
-.typing-indicator .typing-text { 
-    white-space: nowrap;      
-    letter-spacing: 0.3px; 
-}
-
+        .typing-indicator { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; border-bottom-left-radius: 4px; padding: 14px 18px; display: flex; gap: 6px; align-items: center; animation: fadeIn 0.3s ease; }
         .typing-indicator span { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: tdot 1.2s infinite; opacity: 0.5; }
         .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
         .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
@@ -389,24 +370,13 @@
 
         // ── HELPERS ───────────────────────────────────────────────────────
         function showTyping() {
-            const messages = [
-                "Thinking on it",
-                "Processing your request",
-                "Gemma 4 is reasoning",
-                "Crafting a response"
-            ];
-            const randomMsg = messages[Math.floor(Math.random() * messages.length)];
             const el = document.createElement('div');
             el.className = 'typing-indicator';
-            el.innerHTML = `
-            <span></span><span></span><span></span>
-            <span class="typing-text">${randomMsg}</span>
-            `;
+            el.innerHTML = '<span></span><span></span><span></span>';
             const h = document.getElementById('chat-history');
             h.appendChild(el); h.scrollTop = h.scrollHeight;
             return el;
         }
-        
         function removeTyping(el) { if (el?.parentNode) el.parentNode.removeChild(el); }
 
         function renderSidebarItem(session, setActive) {
