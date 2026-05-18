@@ -32,7 +32,7 @@ if (!process.env.GEMMA_API_KEY) {
 }
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMMA_API_KEY });
-const GEMMA_MODEL = 'gemma-4-it';
+const GEMMA_MODEL = 'gemma-4-26b-a4b-it';
 
 const SYSTEM_PROMPT = `You are MALAK, an AI Mentor created by Malak M. Salem — a data science student at Cairo University who is deeply curious about technology and self-development. She built MALAK to be the kind of mentor she wished existed while learning: intelligent, practical, and genuinely helpful.
 
