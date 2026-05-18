@@ -12,7 +12,7 @@ const CACHE_MAX = 500;
 
 // -- HARDCODED PATTERNS --
 const CASUAL_PATTERNS   = /^\s*(hi|hello|hey|hii|helo|sup|yo|howdy|greetings|good morning|good evening|good night|good afternoon|thanks|thank you|thx|ty|ok|okay|k|lol|haha|hehe|bye|goodbye|see you|cya|np|no problem|cool|nice|great|awesome|got it|sure|yep|nope|yes|no|maybe)\s*[!?.]*\s*$/i;
-const IDENTITY_PATTERNS = /\b(i am|i'm|my name is|i work as|i'm a|i am a|i study|i'm studying|i live in|i'm from|i'm based in|i'm currently|i hate|i love|i enjoy|i dislike|i struggle with|i'm good at|i'm bad at|i find.*hard|i find.*easy|i'm interested in|i don't like|i like)\b/i;
+const IDENTITY_PATTERNS = /\b(i am|i'm|my name is|i work as|i'm a|i am a|i study|i'm studying|i live in|i'm from|i'm based in|i'm currently|i hate|i love|i enjoy|i dislike|i struggle with|i'm good at|i'm bad at|i find.*hard|i find.*easy|i'm interested in|i don't like|i like|i can't|i always|i never|i prefer|i wish|i want to be|i'm terrible at|i'm awful at|i suck at|i'm weak at)\b/i;
 const LEARNING_PATTERNS = /\b(teach me|explain|how (do|does|can|to)|learn|understand|what is|what are|difference between|help me (with|understand)|i want to learn|i need to learn|how it works|show me|walk me through|guide me|roadmap|course|resource|study|practice|stuck on|struggling with|can you help)\b/i;
 
 export async function classifyMemory(text) {
@@ -25,10 +25,10 @@ export async function classifyMemory(text) {
     };
 
     const t = text.trim();
-
-    if (CASUAL_PATTERNS.test(t))   return cache('casual');
+    
     if (LEARNING_PATTERNS.test(t)) return cache('learning');
     if (IDENTITY_PATTERNS.test(t)) return cache('identity');
+    if (CASUAL_PATTERNS.test(t))   return cache('casual');
 
     try {
         const response = await genAI.models.generateContent({
