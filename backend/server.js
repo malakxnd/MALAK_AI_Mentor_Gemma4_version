@@ -395,6 +395,24 @@ async function updateSessionInsight(sessionId) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH CHECK + SELF-PING (prevents Render free tier spin-down)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+app.get('/health', (req, res) => res.json({ status: 'alive', ts: Date.now() }));
+
+const SELF_URL = process.env.RENDER_URL;
+if (SELF_URL) {
+    setInterval(async () => {
+        try {
+            await fetch(`${SELF_URL}/health`);
+            console.log('🏓 Self-ping OK');
+        } catch (e) {
+            console.warn('Self-ping failed:', e.message);
+        }
+    }, 4 * 60 * 1000); // every 4 minutes
+    console.log(`🏓 Self-ping active → ${SELF_URL}/health`);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // START DAILY MOTIVATOR
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import './daily_motivator.js';
