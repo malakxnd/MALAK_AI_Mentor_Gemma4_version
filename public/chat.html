@@ -147,7 +147,9 @@
     </div>
 
     <script>
-        const API_URL  = "http://localhost:3005/api";
+        const API_URL = window.location.hostname === 'localhost'
+        ? 'http://localhost:3005/api'
+        : '/api';
         const token    = localStorage.getItem("token");
         const userId   = localStorage.getItem("userId");
         const username = localStorage.getItem("username") || "User";

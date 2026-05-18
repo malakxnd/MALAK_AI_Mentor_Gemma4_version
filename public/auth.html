@@ -107,7 +107,9 @@
 
     <script>
         let isSignup = false;
-        const API_URL = "http://localhost:3005/api";
+        const API_URL = window.location.hostname === 'localhost'
+        ? 'http://localhost:3005/api'
+        : '/api';
 
         function toggleMode() {
             isSignup = !isSignup;
