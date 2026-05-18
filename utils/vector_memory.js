@@ -12,7 +12,7 @@ const CACHE_MAX = 500;
 
 // -- HARDCODED PATTERNS --
 const CASUAL_PATTERNS   = /^\s*(hi|hello|hey|hii|helo|sup|yo|howdy|greetings|good morning|good evening|good night|good afternoon|thanks|thank you|thx|ty|ok|okay|k|lol|haha|hehe|bye|goodbye|see you|cya|np|no problem|cool|nice|great|awesome|got it|sure|yep|nope|yes|no|maybe)\s*[!?.]*\s*$/i;
-const IDENTITY_PATTERNS = /\b(i am|i'm|my name is|i work as|i'm a|i am a|i study|i'm studying|i live in|i'm from|i'm based in|i'm currently)\b/i;
+const IDENTITY_PATTERNS = /\b(i am|i'm|my name is|i work as|i'm a|i am a|i study|i'm studying|i live in|i'm from|i'm based in|i'm currently|i hate|i love|i enjoy|i dislike|i struggle with|i'm good at|i'm bad at|i find.*hard|i find.*easy|i'm interested in|i don't like|i like)\b/i;
 const LEARNING_PATTERNS = /\b(teach me|explain|how (do|does|can|to)|learn|understand|what is|what are|difference between|help me (with|understand)|i want to learn|i need to learn|how it works|show me|walk me through|guide me|roadmap|course|resource|study|practice|stuck on|struggling with|can you help)\b/i;
 
 export async function classifyMemory(text) {
@@ -158,7 +158,12 @@ export async function queryMemory({ userId, currentMessage, topK = 8, mode = 'ch
             .filter(m => {
                 if (m.score <= 0.7) return false;
                 if (mode === 'email') return m.metadata.type === 'learning';
-                return m.metadata.type === 'learning' || m.metadata.type === 'identity';
+                // chat mode: always include learning + identity, include casual only if very high score
+                return (
+                    m.metadata.type === 'learning' ||
+                    m.metadata.type === 'identity' ||
+                    (m.metadata.type === 'casual' && m.score > 0.85)
+                );
             })
             .map(m => ({
                 text:      m.metadata.text,
